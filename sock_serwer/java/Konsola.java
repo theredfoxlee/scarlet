@@ -1,5 +1,3 @@
-package tb.sockets.server;
-
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -11,7 +9,7 @@ public class Konsola {
 
 	public static void main(String[] args) {
 		try {
-			ServerSocket sSock = new ServerSocket(6666);
+			ServerSocket sSock = new ServerSocket(6624);
 			Socket sock = sSock.accept();
 			DataInputStream in = new DataInputStream(sock.getInputStream());
 			BufferedReader is = new BufferedReader(new InputStreamReader(in));

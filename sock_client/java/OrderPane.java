@@ -1,5 +1,3 @@
-package tb.sockets.client;
-
 import javax.swing.JPanel;
 import java.awt.Color;
 

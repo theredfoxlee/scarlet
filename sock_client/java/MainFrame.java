@@ -1,5 +1,3 @@
-package tb.sockets.client;
-
 import java.awt.EventQueue;
 import java.text.FieldPosition;
 import java.text.Format;
