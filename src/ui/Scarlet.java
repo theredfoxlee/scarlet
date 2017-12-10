@@ -24,6 +24,8 @@ public class Scarlet extends Application{
 
     private final KeyCombination toggleKey = new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN);
     private final KeyCombination newLineKey = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHIFT_DOWN);
+    //private final KeyCombination biggerKey = new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN);
+    //private final KeyCombination smallerKey = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
     // ------------------------------------------
 
     private VBox messagesPane;
@@ -75,16 +77,25 @@ public class Scarlet extends Application{
                     addMessage(new Message("Kamil", getCurrentDate(),textArea.getText()));
                     textArea.clear();
                 }
-            } else {
-                //int length = textArea.getText().length();
-                //length -= 100;
-                //int value = 15;
-                //while (length > 0) {
-                //    value += 30;
-                //    length -= 100;
-                //}
-                //textArea.setPrefHeight(value);
-            }
+            } /*else if (biggerKey.match(e)) {
+                System.out.println("New");
+                for (Node node : messagesPane.getChildren()) {
+                    if (node instanceof Message) {
+                        Message message = (Message) node;
+                        for (Node node2 : message.getChildren()) {
+                            if (node2 instanceof Label) {
+                                Label label = (Label) node;
+
+                                double newSize = label.getFont().getSize() + 1;
+                                System.out.println("New");
+                                label.setStyle("-fx-font-size: " + newSize + ";");
+                            }
+                        }
+                    }
+                }
+            } else if (smallerKey.match(e)) {
+
+            }*/
         });
         //textArea.focusedProperty().addListener((observable, oldValue, newValue) -> {
         //    if (newValue) textArea.setPrefHeight(40);
@@ -98,7 +109,7 @@ public class Scarlet extends Application{
 
         Scene mainScene = new Scene(borderPane);
         mainScene.getStylesheets().clear();
-        mainScene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+        mainScene.getStylesheets().add(getClass().getResource("/css/scarlet.css").toExternalForm());
 
         return mainScene;
     }
@@ -117,7 +128,7 @@ public class Scarlet extends Application{
         Scene sideScene =  new Scene(vBox);
 
         sideScene.getStylesheets().clear();
-        sideScene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+        sideScene.getStylesheets().add(getClass().getResource("/css/scarlet.css").toExternalForm());
 
         return sideScene;
     }

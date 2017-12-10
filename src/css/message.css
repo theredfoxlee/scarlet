@@ -1,5 +1,29 @@
-/*fsa*/
-
 .message {
     -fx-padding: 0 10 0 10 0;
+}
+
+.message-info {
+    -fx-spacing: 5;
+    -fx-font-family: "fantasy";
+    -fx-font-size: 12;
+}
+
+.message-info-date {
+
+}
+
+.message-info-author {
+
+}
+
+.message-message {
+    -fx-background-color: #F46036;
+    -fx-background-radius: 5;
+
+    -fx-padding: 5;
+
+    -fx-text-fill: #FFFFFF;
+    -fx-font-family: "fantasy";
+    -fx-font-size: 14;
+    -fx-wrap-text: "true";
 }
