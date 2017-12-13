@@ -2,6 +2,7 @@ package ui;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
@@ -137,10 +138,11 @@ public class Scarlet extends Application{
     //method used for setting loging scene
     private Scene setloginScene(Stage stage,Scene mainScene){
         GridPane gridPane = new GridPane();
+        gridPane.setAlignment(Pos.CENTER);
         gridPane.setPadding(new Insets(10,10,10,10));
         //gaps between items
         gridPane.setHgap(10);
-        gridPane.setHgap(10);
+        gridPane.setVgap(10);
 
         TextField login =new TextField("Set your Login");
         GridPane.setConstraints(login,1,0);
