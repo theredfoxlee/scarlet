@@ -1,14 +1,15 @@
 package ui;
 
 import javafx.application.Application;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
@@ -40,13 +41,14 @@ public class Scarlet extends Application{
         // --------APPLICATION-STARTING-POINT--------
         Scene mainScene = buildMainScene();
         Scene sideScene = buildSideScene();
+        Scene logingScene = setloginScene(primaryStage,mainScene);
 
         bindToToggle(primaryStage, mainScene, sideScene, toggleKey);
 
         primaryStage.setMinWidth(minWidth);
         primaryStage.setMinHeight(minHeight);
 
-        primaryStage.setScene(mainScene);
+        primaryStage.setScene(logingScene);
         primaryStage.show();
         // ------------------------------------------
     }
@@ -131,6 +133,40 @@ public class Scarlet extends Application{
         sideScene.getStylesheets().add(getClass().getResource("/css/scarlet.css").toExternalForm());
 
         return sideScene;
+    }
+    //method used for setting loging scene
+    private Scene setloginScene(Stage stage,Scene mainScene){
+        GridPane gridPane = new GridPane();
+        gridPane.setPadding(new Insets(10,10,10,10));
+        //gaps between items
+        gridPane.setHgap(10);
+        gridPane.setHgap(10);
+
+        TextField login =new TextField("Set your Login");
+        GridPane.setConstraints(login,1,0);
+
+        Label loginLabel = new Label("Login:");
+        GridPane.setConstraints(loginLabel,0,0);
+
+        PasswordField password = new PasswordField();
+        GridPane.setConstraints(password,1,1);
+
+        Label passwordLabel = new Label("Password:");
+        GridPane.setConstraints(passwordLabel,0,1);
+
+        Button logingButton = new Button("Login");
+        GridPane.setConstraints(logingButton,1,2);
+
+        logingButton.setOnAction(e -> {
+            //if authorized
+                stage.setScene(mainScene);
+        });
+
+
+        gridPane.getChildren().addAll(login,loginLabel,password,passwordLabel,logingButton);
+
+        Scene logingScene = new Scene(gridPane);
+        return logingScene;
     }
 
     private void bindToToggle(Stage stage, Scene scene_1, Scene scene_2, KeyCombination toggleKey) {
