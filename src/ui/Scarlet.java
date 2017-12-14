@@ -1,6 +1,7 @@
 package ui;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -14,6 +15,9 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -26,12 +30,13 @@ public class Scarlet extends Application{
 
     private final KeyCombination toggleKey = new KeyCodeCombination(KeyCode.T, KeyCombination.CONTROL_DOWN);
     private final KeyCombination newLineKey = new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHIFT_DOWN);
-    //private final KeyCombination biggerKey = new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN);
-    //private final KeyCombination smallerKey = new KeyCodeCombination(KeyCode.MINUS, KeyCombination.CONTROL_DOWN);
     // ------------------------------------------
 
     private VBox messagesPane;
     private TextArea textArea;
+
+    private Communication client;
+    private Communication server;
 
     public static void main(String[] args) {
         launch(args);
@@ -52,6 +57,28 @@ public class Scarlet extends Application{
         primaryStage.setScene(logingScene);
         primaryStage.show();
         // ------------------------------------------
+
+        endConnection(6666);
+    }
+
+    private void connectTo(String ip, int port) {
+        if (server != null && server.isActive()) {
+            server.disable();
+        }
+        client = new Client(ip, port);
+        Thread thread = new Thread(() -> {client.go();});
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void endConnection(int port) {
+        if (server != null && server.isActive()) {
+            server.disable();
+        }
+        server = new Server(port);
+        Thread thread = new Thread(() -> {client.go();});
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private Scene buildMainScene() {
@@ -62,13 +89,13 @@ public class Scarlet extends Application{
 
         messagesPane = new VBox();
         messagesPane.setSpacing(10);
-        // TEMPORARY
-        //addMessage(generateSampleMessage());
-        // ---------
         messagesPane.getStyleClass().add("message-pane");
+
         ScrollPane scrollableMessagePane = new ScrollPane();
         scrollableMessagePane.setContent(messagesPane);
         scrollableMessagePane.setFitToWidth(true);
+
+        messagesPane.heightProperty().addListener((observable,oldValue,newValue) -> {scrollableMessagePane.setVvalue((Double)newValue );});
 
         textArea = new TextArea();
         textArea.setPrefHeight(25);
@@ -77,35 +104,13 @@ public class Scarlet extends Application{
                 textArea.appendText("\n");
             } else if (e.getCode().equals(KeyCode.ENTER)) {
                 if (!textArea.getText().isEmpty()) {
-                    addMessage(new Message("Kamil", getCurrentDate(),textArea.getText()));
-                    textArea.clear();
-                }
-            } /*else if (biggerKey.match(e)) {
-                System.out.println("New");
-                for (Node node : messagesPane.getChildren()) {
-                    if (node instanceof Message) {
-                        Message message = (Message) node;
-                        for (Node node2 : message.getChildren()) {
-                            if (node2 instanceof Label) {
-                                Label label = (Label) node;
-
-                                double newSize = label.getFont().getSize() + 1;
-                                System.out.println("New");
-                                label.setStyle("-fx-font-size: " + newSize + ";");
-                            }
-                        }
+                    if (client.isReady()) {
+                        client.send(new Message("Kamil", getCurrentDate(),textArea.getText()));
+                        textArea.clear();
                     }
                 }
-            } else if (smallerKey.match(e)) {
-
-            }*/
+            }
         });
-        //textArea.focusedProperty().addListener((observable, oldValue, newValue) -> {
-        //    if (newValue) textArea.setPrefHeight(40);
-        //    else textArea.setPrefHeight(20);
-            //if (oldValue) textArea.setPrefHeight(15);
-            //if (newValue) textArea.setPrefHeight(15);
-        //});
 
         borderPane.setCenter(scrollableMessagePane);
         borderPane.setBottom(textArea);
@@ -118,15 +123,23 @@ public class Scarlet extends Application{
     }
 
     private Scene buildSideScene() {
-        //BorderPane borderPane = new BorderPane();
-        //borderPane.setPrefWidth(prefWidth);
-        //borderPane.setPrefHeight(prefHeight);
-
-        //return new Scene(borderPane);
-
         VBox vBox = new VBox();
         vBox.setPrefWidth(prefWidth);
         vBox.setPrefHeight(prefHeight);
+
+        Button button = new Button("Connect");
+        Label label = new Label ();
+        button.setOnAction(e->{
+            connectTo("localhost", 6666);
+            if (client.isReady()) {
+                label.setText("Connected");
+            } else {
+                label.setText("Not connected");
+                endConnection(6666);
+            }
+        });
+
+        vBox.getChildren().addAll(button, label);
 
         Scene sideScene =  new Scene(vBox);
 
@@ -181,18 +194,146 @@ public class Scarlet extends Application{
     }
 
     private void addMessage(Message message) {
-        messagesPane.getChildren().add(message);
-    }
-
-    private Message generateSampleMessage() {
-        String author = "John";
-        String date = getCurrentDate();
-        String message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras vitae venenatis risus. Sed a hendrerit nulla, id ullamcorper justo. Nunc bibendum vulputate nunc, id consequat metus porttitor ac. Praesent euismod sem id ex auctor, ac tempor nunc sodales. Cras pharetra lobortis venenatis. Nam iaculis ornare risus vitae finibus. Suspendisse tincidunt fringilla nulla eu sodales. Nullam eget lectus vel nunc sagittis scelerisque eget et nunc. Fusce mollis pretium metus, malesuada tincidunt turpis sodales ac.";
-
-        return new Message(author, date, message);
+        Platform.runLater(new Runnable() {
+            @Override
+            public void run() {
+                messagesPane.getChildren().add(message);
+            }
+        });
     }
 
     private String getCurrentDate() {
         return new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
     }
+
+    private abstract class Communication {
+        protected Socket socket;
+
+        protected ObjectInputStream inputStream;
+        protected ObjectOutputStream outputStream;
+
+        protected boolean isFine = true;
+        protected boolean activated = false;
+
+        public abstract void go();
+
+        public void send(Message message) {
+            try {
+                outputStream.writeObject(message.getAuthor());
+                outputStream.writeObject(message.getDate());
+                outputStream.writeObject(message.getMessage());
+                outputStream.flush();
+            } catch (IOException e) {
+                System.err.println(e.getMessage());
+            }
+            addMessage(message);
+        }
+
+        public boolean isActive() {
+            return activated;
+        }
+
+        public boolean isReady() {
+            return isFine && activated;
+        }
+
+        public void disable() {
+            isFine = false;
+            activated = false;
+        }
+
+        protected void initStreams() throws IOException {
+            outputStream = new ObjectOutputStream(socket.getOutputStream());
+            inputStream = new ObjectInputStream(socket.getInputStream());
+        }
+
+        protected void chat() throws IOException, ClassNotFoundException {
+            while (isFine) {
+                String author = (String) inputStream.readObject();
+                String date = (String) inputStream.readObject();
+                String message = (String) inputStream.readObject();
+
+                addMessage(new Message(author, date, message));
+            }
+        }
+
+        protected void close() throws IOException {
+            inputStream.close();
+            outputStream.close();
+            socket.close();
+        }
+    }
+
+    private class Server extends Communication {
+        private int port;
+
+        public Server(int port) {
+            this.port = port;
+        }
+
+        public void go() {
+            startServer();
+        }
+
+        public void startServer() {
+            try {
+                this.initSocket();
+                this.initStreams();
+
+                activated = true;
+
+                this.chat();
+                this.close();
+            } catch (Exception e) {
+                isFine = false;
+                activated = false;
+                System.err.println(e.getMessage());
+            }
+        }
+
+        public void initSocket() throws IOException {
+            ServerSocket serverSocket = new ServerSocket(port);
+            socket = serverSocket.accept();
+        }
+
+        public void stopServer() {
+            isFine = false;
+        }
+    }
+
+    private class Client extends Communication {
+        private String ip;
+        private int port;
+
+        public Client(String ip, int port) {
+            this.ip = ip;
+            this.port = port;
+            this.activated = false;
+        }
+
+        public void go() {
+            connect();
+        }
+
+        public void connect() {
+            try {
+                this.initSocket();
+                this.initStreams();
+
+                activated = true;
+
+                this.chat();
+                this.close();
+            } catch (Exception e) {
+                isFine = false;
+                activated = false;
+                System.err.println(e.getMessage());
+            }
+        }
+
+        public void initSocket() throws IOException {
+            socket = new Socket(ip, port);
+        }
+    }
 }
+
