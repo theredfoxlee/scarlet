@@ -35,8 +35,7 @@ public class Scarlet extends Application{
     private VBox messagesPane;
     private TextArea textArea;
 
-    private Communication client;
-    private Communication server;
+    private Communication communication;
 
     public static void main(String[] args) {
         launch(args);
@@ -56,29 +55,16 @@ public class Scarlet extends Application{
 
         primaryStage.setScene(logingScene);
         primaryStage.show();
+
+        // ----CONNECTION----
+
+        communication = new Client("localhost", 6666);
+        //communication = new Server(6666);
+        Thread thread = new Thread(() -> { communication.go(); });
+        thread.setDaemon(true);
+        thread.start();
+
         // ------------------------------------------
-
-        endConnection(6666);
-    }
-
-    private void connectTo(String ip, int port) {
-        if (server != null && server.isActive()) {
-            server.disable();
-        }
-        client = new Client(ip, port);
-        Thread thread = new Thread(() -> {client.go();});
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-    private void endConnection(int port) {
-        if (server != null && server.isActive()) {
-            server.disable();
-        }
-        server = new Server(port);
-        Thread thread = new Thread(() -> {client.go();});
-        thread.setDaemon(true);
-        thread.start();
     }
 
     private Scene buildMainScene() {
@@ -104,8 +90,8 @@ public class Scarlet extends Application{
                 textArea.appendText("\n");
             } else if (e.getCode().equals(KeyCode.ENTER)) {
                 if (!textArea.getText().isEmpty()) {
-                    if (client.isReady()) {
-                        client.send(new Message("Kamil", getCurrentDate(),textArea.getText()));
+                    if (communication.isReady()) {
+                        communication.send(new Message("Kamil", getCurrentDate(),textArea.getText()));
                         textArea.clear();
                     }
                 }
@@ -126,20 +112,6 @@ public class Scarlet extends Application{
         VBox vBox = new VBox();
         vBox.setPrefWidth(prefWidth);
         vBox.setPrefHeight(prefHeight);
-
-        Button button = new Button("Connect");
-        Label label = new Label ();
-        button.setOnAction(e->{
-            connectTo("localhost", 6666);
-            if (client.isReady()) {
-                label.setText("Connected");
-            } else {
-                label.setText("Not connected");
-                endConnection(6666);
-            }
-        });
-
-        vBox.getChildren().addAll(button, label);
 
         Scene sideScene =  new Scene(vBox);
 
