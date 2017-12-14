@@ -137,7 +137,11 @@ public class Scarlet extends Application{
     }
     //method used for setting loging scene
     private Scene setloginScene(Stage stage,Scene mainScene){
+
         GridPane gridPane = new GridPane();
+        gridPane.setMinSize(minWidth,minHeight);
+        gridPane.getStylesheets().add(getClass().getResource("/css/login.css").toExternalForm());
+
         gridPane.setAlignment(Pos.CENTER);
         gridPane.setPadding(new Insets(10,10,10,10));
         //gaps between items
@@ -157,6 +161,7 @@ public class Scarlet extends Application{
         GridPane.setConstraints(passwordLabel,0,1);
 
         Button logingButton = new Button("Login");
+        logingButton.getStyleClass().add("login-button");
         GridPane.setConstraints(logingButton,1,2);
 
         logingButton.setOnAction(e -> {
