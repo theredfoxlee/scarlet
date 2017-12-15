@@ -1,0 +1,10 @@
+.root{
+   -fx-background-color:rgb(204, 217, 255);
+}
+
+.login-button{
+    -fx-background-color: rgb(102, 153, 255);
+}
+.login-wrong{
+    -fx-background-color: #D52525;
+}

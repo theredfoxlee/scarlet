@@ -6,6 +6,11 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -18,6 +23,7 @@ import javafx.stage.Stage;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.awt.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -122,7 +128,11 @@ public class Scarlet extends Application{
     }
     //method used for setting loging scene
     private Scene setloginScene(Stage stage,Scene mainScene){
+
         GridPane gridPane = new GridPane();
+        gridPane.setMinSize(minWidth,minHeight);
+        gridPane.getStylesheets().add(getClass().getResource("/css/login.css").toExternalForm());
+
         gridPane.setAlignment(Pos.CENTER);
         gridPane.setPadding(new Insets(10,10,10,10));
         //gaps between items
@@ -142,15 +152,28 @@ public class Scarlet extends Application{
         GridPane.setConstraints(passwordLabel,0,1);
 
         Button logingButton = new Button("Login");
-        GridPane.setConstraints(logingButton,1,2);
+        logingButton.getStyleClass().add("login-button");
+        GridPane.setConstraints(logingButton,0,3);
+
+        Button addButton = new Button("Add");
+        addButton.getStyleClass().add("login-button");
+        GridPane.setConstraints(addButton,1,3);
+
+
+        Login_authorize authorization = new Login_authorize();
 
         logingButton.setOnAction(e -> {
-            //if authorized
+            if(authorization.autorize(login.getText(),password.getText())){
                 stage.setScene(mainScene);
+            }
+            else{
+                logingButton.getStyleClass().add("login-wrong");
+            }
+
         });
 
 
-        gridPane.getChildren().addAll(login,loginLabel,password,passwordLabel,logingButton);
+        gridPane.getChildren().addAll(login,loginLabel,password,passwordLabel,logingButton,addButton);
 
         Scene logingScene = new Scene(gridPane);
         return logingScene;
