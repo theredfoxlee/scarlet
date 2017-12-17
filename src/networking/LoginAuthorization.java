@@ -1,4 +1,4 @@
-package ui;
+package networking;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -6,12 +6,12 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.HashMap;
 
-public class Login_authorize {
+public class LoginAuthorization {
 //    private String login;
 //    private String password;
     private HashMap<String,String> users= new HashMap<>();
 
-    Login_authorize(){
+    LoginAuthorization(){
         getUsername();
     }
 
