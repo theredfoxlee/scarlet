@@ -56,6 +56,8 @@ public class Client {
                 } catch (Exception e) {
                     System.err.println("CLIENT: Input stream has been broken.");
                     System.err.println(e);
+
+                    //client not authorized
                 }
             }).start();
         }

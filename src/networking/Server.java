@@ -1,8 +1,8 @@
 package networking;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import javax.xml.crypto.Data;
+import java.io.*;
+import java.lang.management.LockInfo;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -27,10 +27,15 @@ public class Server {
     }}; // for echoing messages
     // ------------------------------------------
 
+    //variables used in client validation
+    private DataInputStream is;
+    private PrintStream os;
+    private boolean is_valid;
 
     public static void main(String args[]) {
         // ---------SERVER-STARTING-POINT--------
         new Server(6666);
+
         // ------------------------------------------
     }
 
@@ -49,25 +54,68 @@ public class Server {
         }
     }
 
+    private void initialize_streams(Socket client) {
+        try {
+            is = new DataInputStream(client.getInputStream());
+            os = new PrintStream(client.getOutputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void start() {
         // DIRTY WHILE
         while (true) {
             try {
                 Socket client = server.accept();
 
-                int idx = clients.indexOf(null);
-                if (idx != -1) {
-                    clients.set(idx, new Client(client));
-                    clients.get(idx).start();
-                } else {
-                    this.sendMessage(new PrintStream(client.getOutputStream()),
-                            "SERVER", "", "Server is too busy, try later.");
+                //validateClient(client)
+                if(validateClient(client)) {
+
+                    int idx = clients.indexOf(null);
+                    if (idx != -1) {
+                        clients.set(idx, new Client(client));
+                        clients.get(idx).start();
+                    } else {
+                        this.sendMessage(new PrintStream(client.getOutputStream()),
+                                "SERVER", "", "Server is too busy, try later.");
+                    }
+                }
+                else{
+                    client.close();
+                    System.err.println("Client's socket closed");
                 }
             } catch (IOException e) {
                 System.err.println("SERVER: Couldn't established connection with client.");
                 System.err.println(e);
             }
         }
+    }
+
+    private boolean validateClient(Socket client) {
+        this.initialize_streams(client);
+        HashMap<String, String> messages = new HashMap<>();
+        try {
+            messages.put("author", is.readLine());
+            messages.put("date", is.readLine());
+            messages.put("message", is.readLine());
+        } catch (IOException e) {
+            System.err.println("Couldnt read first input stream (login and password)");
+        }
+
+        String login = messages.get("author");
+        String password = messages.get("message");
+
+        System.out.println(login);
+        System.out.println(password);
+        LoginAuthorization authorization = new LoginAuthorization();
+        if (authorization.autorize(login, password)) {
+            is_valid = true;
+        } else {
+            is_valid = false;
+        }
+        System.out.println(is_valid);
+        return is_valid;
     }
 
     private boolean isFull() {
@@ -80,6 +128,9 @@ public class Server {
         os.println(message);
     }
 
+    //---------------------------------------------///
+
+
     private class Client extends Thread {
         // ------------NECESSARY-HANDLES-------------
         private Socket socket;         // for establishing I/O streams with client
@@ -88,6 +139,9 @@ public class Server {
         // ------------------------------------------
 
         String name;
+        String login;
+        String password;
+        boolean is_valid;
 
         public Client(Socket socket) {
             this.socket = socket;
@@ -96,10 +150,13 @@ public class Server {
         @Override
         public void run() {
             this.openStreams();
+
             this.makeHandshake();
             this.notifyOthers("User " + name + " entered the room!");
             this.listenAndEcho();
+            //if user left while loop breaks and:
             this.notifyOthers("User " + name + " left the room!");
+
             this.closeStreams();
         }
 
@@ -113,12 +170,39 @@ public class Server {
             }
         }
 
+//        private boolean validateClient() {
+//            try {
+//
+//                HashMap<String, String> messageMap = readMessage();
+//                LoginAuthorization authorization = new LoginAuthorization();
+//
+//                login = messageMap.get("author"); //here it's login -> author field contains login
+//                password = messageMap.get("message"); //here it's password
+//                //System.out.println(login);
+//                //System.out.println(password);
+//
+//                if (authorization.autorize(login, password)) {
+//                    is_valid = true;
+//
+//                } else {
+//                    is_valid = false;
+//                }
+//
+//
+//            } catch (IOException e) {
+//                System.err.println("Can't read message from one of the clients");
+//                System.err.println(e);
+//            }
+//
+//            return is_valid;
+//        }
+
         private void makeHandshake() {
             try {
                 HashMap<String, String> messageTable = readMessage();
                 name = messageTable.get("author");
 
-                sendMessage(os, "Server", "", "Hello "+name);
+                sendMessage(os, "Server", "", "Hello " + name);
             } catch (IOException e) {
                 System.err.println("SERVER: Handshakes couldn't be made.");
                 System.err.println(e);

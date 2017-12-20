@@ -14,6 +14,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import networking.Client;
+import networking.LoginAuthorization;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -63,10 +64,17 @@ public class Scarlet extends Application {
         super.stop();
     }
 
-    public void establishConnection() {
+    public void establishConnection(String login,String password) {
+        //if client.authorize
+        System.out.println(login);
+        System.out.println(password);
         client = new Client(host, port, this);
-        client.send(new Message(loginTextField.getText(), getCurrentDate(), "HANDSHAKE"));
+//
+        client.send(new Message(login,getCurrentDate(),password));
+        client.send(new Message(login, getCurrentDate(), "HANDSHAKE"));
+
     }
+
 
     private Scene buildMainScene() {
         BorderPane borderPane = new BorderPane();
@@ -143,8 +151,10 @@ public class Scarlet extends Application {
 
         // temporary
         loginButton.setOnAction(e -> {
+
             stage.setScene(mainScene);
-            establishConnection();
+            establishConnection(loginTextField.getText(),passwordTextField.getText());
+
         });
 
         // TEMPORARY COMMENTED
