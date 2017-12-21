@@ -1,12 +1,9 @@
 package networking;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class Server {
     // ------------SERVER-CONSTANTS--------------
@@ -60,8 +57,10 @@ public class Server {
                     clients.set(idx, new Client(client));
                     clients.get(idx).start();
                 } else {
-                    this.sendMessage(new PrintStream(client.getOutputStream()),
-                            "SERVER", "", "Server is too busy, try later.");
+                    /*this.sendMessage(new PrintStream(client.getOutputStream()),
+                            "SERVER", "", "Server is too busy, try later.");*/
+                    this.sendMessage(new ObjectOutputStream(client.getOutputStream()),
+                            new MessageCard("SERVER", "", "Server is too busy, try later."));
                 }
             } catch (IOException e) {
                 System.err.println("SERVER: Couldn't established connection with client.");
@@ -74,17 +73,25 @@ public class Server {
         return noClients == maxNoClients;
     }
 
-    private void sendMessage(PrintStream os, String author, String date, String message) {
+    /*private void sendMessage(PrintStream os, String author, String date, String message) {
         os.println(author);
         os.println(date);
         os.println(message);
+    }*/
+
+    private void sendMessage(ObjectOutputStream os, MessageCard message) {
+        try {
+            os.writeObject(message);
+        } catch(Exception E) {
+
+        }
     }
 
     private class Client extends Thread {
         // ------------NECESSARY-HANDLES-------------
         private Socket socket;         // for establishing I/O streams with client
-        private DataInputStream is;  // for retrieving messages from client
-        private PrintStream os;        // for sending messages to client
+        private ObjectInputStream is;  // for retrieving messages from client
+        private ObjectOutputStream os;        // for sending messages to client
         // ------------------------------------------
 
         String name;
@@ -105,8 +112,8 @@ public class Server {
 
         private void openStreams() {
             try {
-                is = new DataInputStream(socket.getInputStream());
-                os = new PrintStream(socket.getOutputStream());
+                is = new ObjectInputStream(socket.getInputStream());
+                os = new ObjectOutputStream(socket.getOutputStream());
             } catch (IOException e) {
                 System.err.println("SERVER: Connection couldn't be established.");
                 System.err.println(e);
@@ -115,11 +122,15 @@ public class Server {
 
         private void makeHandshake() {
             try {
-                HashMap<String, String> messageTable = readMessage();
-                name = messageTable.get("author");
+                //HashMap<String, String> messageTable = readMessage();
+                //name = messageTable.get("author");
 
-                sendMessage(os, "Server", "", "Hello "+name);
-            } catch (IOException e) {
+                MessageCard message = (MessageCard) is.readObject();
+                name = message.author;
+
+                /*sendMessage(os, "Server", "", "Hello "+name);*/
+                sendMessage(os, new MessageCard("SERVER", "", "Hello " + name));
+            } catch (Exception e) {
                 System.err.println("SERVER: Handshakes couldn't be made.");
                 System.err.println(e);
             }
@@ -128,8 +139,9 @@ public class Server {
         private void notifyOthers(String message) {
             for (Client client : clients) {
                 if (client != null && client != this) {
-                    sendMessage(client.os,
-                            "Server", "", message);
+                    /*sendMessage(client.os,
+                            "Server", "", message);*/
+                    sendMessage(client.os, new MessageCard("SERVER", "", message));
                 }
             }
         }
@@ -137,20 +149,23 @@ public class Server {
         private void listenAndEcho() {
             try {
                 while (true) {
-                    HashMap<String, String> messageTable = readMessage();
+                    /*HashMap<String, String> messageTable = readMessage();*/
 
-                    if (messageTable.get("message").startsWith(":quit")) {
+                    MessageCard message = (MessageCard) is.readObject();
+
+                    /*if (messageTable.get("message").startsWith(":quit")) {
                         break;
-                    }
+                    }*/
 
                     for (Client client : clients) {
                         if (client != null) {
-                            sendMessage(client.os,
-                                    messageTable.get("author"), messageTable.get("date"), messageTable.get("message"));
+                            /*sendMessage(client.os,
+                                    messageTable.get("author"), messageTable.get("date"), messageTable.get("message"));*/
+                            sendMessage(client.os, message);
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 System.err.println("SERVER: Something went wrong while listening one of the clients.");
                 System.err.println(e);
             } finally {
@@ -179,12 +194,12 @@ public class Server {
             }
         }
 
-        private HashMap<String, String> readMessage() throws IOException {
+        /*private HashMap<String, String> readMessage() throws IOException {
             return new HashMap<>() {{
                 put("author", is.readLine());
                 put("date", is.readLine());
                 put("message", is.readLine());
             }};
-        }
+        }*/
     }
 }

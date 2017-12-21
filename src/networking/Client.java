@@ -9,8 +9,8 @@ import ui.Scarlet;
 public class Client {
     // ------------NECESSARY-HANDLES-------------
     private Socket client;      // for establishing I/O streams with server
-    private PrintStream os;     // for sending messages to server
-    private DataInputStream is; // for retrieving messages from server
+    private ObjectOutputStream os;     // for sending messages to server
+    private ObjectInputStream is; // for retrieving messages from server
 
     private Scarlet ui;         // for adding messages to Scarlet UI
     // ------------------------------------------
@@ -29,8 +29,8 @@ public class Client {
     private void connect(String host, Integer port) {
         try {
             client = new Socket(host, port);
-            os = new PrintStream(client.getOutputStream());
-            is = new DataInputStream(client.getInputStream());
+            os = new ObjectOutputStream(client.getOutputStream());
+            is = new ObjectInputStream(client.getInputStream());
         } catch (IOException e) {
             System.err.println("CLIENT: Connection couldn't be established.");
             System.err.println(e);
@@ -42,16 +42,19 @@ public class Client {
             new Thread(() -> {
                 try {
                     while (!closed) {
-                        String author = is.readLine();
+                        /*String author = is.readLine();
                         String date = is.readLine();
-                        String message = is.readLine();
+                        String message = is.readLine();*/
 
-                        if (author == null || date == null || message == null) {
+                        MessageCard message = (MessageCard) is.readObject();
+
+                        /*if (author == null || date == null || message == null) {
                             closed = true;
                             continue;
-                        }
+                        }*/
 
-                        ui.addMessage(new Message(author, date, message));
+                        /*ui.addMessage(new Message(author, date, message));*/
+                        this.addMessage(message);
                     }
                 } catch (Exception e) {
                     System.err.println("CLIENT: Input stream has been broken.");
@@ -84,12 +87,17 @@ public class Client {
 
     public void send(Message message) {
         try {
-            os.println(message.getAuthor());
+            /*os.println(message.getAuthor());
             os.println(message.getDate());
-            os.println(message.getMessage());
+            os.println(message.getMessage());*/
+            os.writeObject(new MessageCard(message.getAuthor(), message.getDate(), message.getMessage()));
         } catch (Exception e) {
             System.err.println("CLIENT: Couldn't send message.");
             System.err.println(e);
         }
+    }
+
+    private void addMessage(MessageCard message) {
+        ui.addMessage(new Message(message.author, message.date, message.message));
     }
 }
