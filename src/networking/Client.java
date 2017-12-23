@@ -42,7 +42,7 @@ public class Client {
     }
 
     private void runListener() {
-        Thread therad = new Thread(() -> {
+        Thread thread = new Thread(() -> {
             try {
                 while (true) {
                     Message message = (Message) is.readObject();
@@ -63,8 +63,8 @@ public class Client {
                 closed = true;
             }
         });
-        therad.setDaemon(true);
-        therad.start();
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private void disconnect() {
