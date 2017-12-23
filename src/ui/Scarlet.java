@@ -14,7 +14,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import networking.Client;
-import networking.LoginAuthorization;
+import networking.messages.Credentials;
+import networking.messages.Consignment;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -45,7 +46,7 @@ public class Scarlet extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
         // --------APPLICATION-STARTING-POINT--------
         Scene mainScene = buildMainScene();
         Scene loginScene = setLoginScene(primaryStage, mainScene);
@@ -57,24 +58,6 @@ public class Scarlet extends Application {
         primaryStage.show();
         // ------------------------------------------
     }
-
-    @Override
-    public void stop() throws Exception {
-        client.close();
-        super.stop();
-    }
-
-    public void establishConnection(String login,String password) {
-        //if client.authorize
-        System.out.println(login);
-        System.out.println(password);
-        client = new Client(host, port, this);
-//
-        client.send(new Message(login,getCurrentDate(),password));
-        client.send(new Message(login, getCurrentDate(), "HANDSHAKE"));
-
-    }
-
 
     private Scene buildMainScene() {
         BorderPane borderPane = new BorderPane();
@@ -90,7 +73,7 @@ public class Scarlet extends Application {
         scrollableMessagePane.setContent(messagesPane);
         scrollableMessagePane.setFitToWidth(true);
 
-        messagesPane.heightProperty().addListener((observable,oldValue,newValue) -> {scrollableMessagePane.setVvalue((Double)newValue );});
+        messagesPane.heightProperty().addListener((observable,oldValue,newValue) -> scrollableMessagePane.setVvalue((Double)newValue ));
 
         TextArea textArea = new TextArea();
         textArea.setPrefHeight(25);
@@ -100,7 +83,7 @@ public class Scarlet extends Application {
             } else if (e.getCode().equals(KeyCode.ENTER)) {
                 if (!textArea.getText().isEmpty()) {
                     if (!client.isClosed()) {
-                        client.send(new Message(loginTextField.getText(), getCurrentDate(), textArea.getText()));
+                        client.send(new Consignment(loginTextField.getText(), getCurrentDate(), textArea.getText()));
                         textArea.clear();
                     }
                 }
@@ -118,16 +101,16 @@ public class Scarlet extends Application {
     }
 
     private Scene setLoginScene(Stage stage,Scene mainScene){
-
         GridPane gridPane = new GridPane();
         gridPane.setMinSize(minWidth,minHeight);
-        gridPane.getStylesheets().add(getClass().getResource("/css/login.css").toExternalForm());
-
         gridPane.setAlignment(Pos.CENTER);
+
         gridPane.setPadding(new Insets(10,10,10,10));
-        //gaps between items
+
         gridPane.setHgap(10);
         gridPane.setVgap(10);
+
+        gridPane.getStylesheets().add(getClass().getResource("/css/login.css").toExternalForm());
 
         loginTextField = new TextField("Set your Login");
         GridPane.setConstraints(loginTextField,1,0);
@@ -149,28 +132,12 @@ public class Scarlet extends Application {
         addButton.getStyleClass().add("login-button");
         GridPane.setConstraints(addButton,1,3);
 
-        // temporary
         loginButton.setOnAction(e -> {
-
-            stage.setScene(mainScene);
-            establishConnection(loginTextField.getText(),passwordTextField.getText());
-
-        });
-
-        // TEMPORARY COMMENTED
-        /*LoginAuthorization authorization = new LoginAuthorization();
-
-        logingButton.setOnAction(e -> {
-            if(authorization.autorize(login.getText(),password.getText())){
+            establishConnection();
+            if (validateUser(loginTextField.getText(), passwordTextField.getText())) {
                 stage.setScene(mainScene);
-                this.name = login.getText();
             }
-            else{
-                logingButton.getStyleClass().add("login-wrong");
-            }
-
-        });*/
-
+        });
 
         gridPane.getChildren().addAll(loginTextField, loginLabel, passwordTextField, passwordLabel, loginButton, addButton);
 
@@ -184,6 +151,24 @@ public class Scarlet extends Application {
 
     private String getCurrentDate() {
         return new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
+    }
+
+    private void establishConnection() {
+        client = new Client(host, port, this);
+    }
+
+    private boolean validateUser(String username, String password) {
+        client.send(new Credentials(username, password));
+
+        // it's important to wait till client receives Validation message
+        // it's temporary; it should be changed to wait & notify somehow
+        try {
+            Thread.sleep(1000);
+        } catch(InterruptedException e) {
+            // do nothing
+        }
+
+        return !client.isClosed();
     }
 }
 

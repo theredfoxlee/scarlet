@@ -3,7 +3,9 @@ package networking;
 import java.io.*;
 import java.net.Socket;
 
-import ui.Message;
+import networking.messages.Consignment;
+import networking.messages.Message;
+import networking.messages.Validation;
 import ui.Scarlet;
 
 public class Client {
@@ -20,61 +22,59 @@ public class Client {
     // ------------------------------------------
 
     public Client(String host, Integer port, Scarlet ui) {
-        this.connect(host, port);
-        this.listen();
-
+        // ----------CLIENT-STARTING-POINT----------
+        this.establishConnection(host, port);
+        this.runListener();
         this.ui = ui;
+        // ------------------------------------------
     }
 
-    private void connect(String host, Integer port) {
+    private void establishConnection(String host, Integer port) {
         try {
             client = new Socket(host, port);
             os = new ObjectOutputStream(client.getOutputStream());
             is = new ObjectInputStream(client.getInputStream());
             os.flush();
         } catch (IOException e) {
-            System.err.println("CLIENT: Connection couldn't be established.");
-            System.err.println(e);
+            System.err.println("Client: Connection couldn't be established.");
+            System.err.println(e.getMessage());
         }
     }
 
-    private void listen() {
-        if (client != null && os != null && is != null) {
-            new Thread(() -> {
-                try {
-                    while (!closed) {
-                        MessageCard message = (MessageCard) is.readObject();
-                        String author = message.author;
-                        String date = message.date;
-                        String output_message = message.message;
-
-                        if (author == null || date == null || output_message == null) {
-                            closed = true;
-                            continue;
+    private void runListener() {
+        Thread therad = new Thread(() -> {
+            try {
+                while (true) {
+                    Message message = (Message) is.readObject();
+                    if (message instanceof Validation) {
+                        Validation validation = (Validation) message;
+                        if (!validation.isValid()) {
+                            break;
                         }
-
-                        this.addMessage(message);
+                    } else if (message instanceof  Consignment) {
+                        this.addMessage((Consignment) message);
                     }
-                } catch (Exception e) {
-                    System.err.println("CLIENT: Input stream has been broken.");
-                    System.err.println(e);
-
-                    //client not authorized
                 }
-            }).start();
-        }
+            } catch (Exception e) {
+                System.err.println("Client: Input stream has been broken.");
+                System.err.println(e.getMessage());
+            } finally {
+                this.disconnect();
+                closed = true;
+            }
+        });
+        therad.setDaemon(true);
+        therad.start();
     }
 
     private void disconnect() {
-        if (client != null && os != null && is != null) {
-            try {
-                os.close();
-                is.close();
-                client.close();
-            } catch (IOException e) {
-                System.err.println("CLIENT: Couldn't clean streams and socket smoothly.");
-                System.err.println(e);
-            }
+        try {
+            os.close();
+            is.close();
+            client.close();
+        } catch (IOException e) {
+            System.err.println("Client: Couldn't clean streams and socket smoothly.");
+            System.err.println(e.getMessage());
         }
     }
 
@@ -82,22 +82,15 @@ public class Client {
         return closed;
     }
 
-    public void close() {
-        this.disconnect();
-    }
-
-    public void send(Message message) {
+    public void send(networking.messages.Message message) {
         try {
-            /*os.println(message.getAuthor());
-            os.println(message.getDate());
-            os.println(message.getMessage());*/
-            os.writeObject(new MessageCard(message.getAuthor(), message.getDate(), message.getMessage()));
-        } catch (Exception e) {
-            System.err.println("CLIENT: Couldn't send message.");
-            System.err.println(e);
+            os.writeObject(message);
+        } catch (IOException e) {
+            System.err.println("Client: Couldn't send message.");
+            System.err.println(e.getMessage());
         }
     }
-    private void addMessage(MessageCard message) {
-        ui.addMessage(new Message(message.author, message.date, message.message));
+    private void addMessage(Consignment message) {
+        ui.addMessage(new ui.Message(message.getAuthor(), message.getDate(), message.getMessage()));
     }
 }
