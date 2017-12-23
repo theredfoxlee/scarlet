@@ -1,29 +1,22 @@
 package networking;
 
+import networking.messages.Credentials;
+import networking.messages.Consignment;
+import networking.messages.Validation;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 
+import java.util.Date;
+
 public class Server {
-    // ------------SERVER-CONSTANTS--------------
-    private final int port;
-    private final int maxNoClients = 10;
-    // ------------------------------------------
-
-    // --------------SERVER-FLAGS----------------
-    private int noClients = 0;
-    // ------------------------------------------
-
     // ------------NECESSARY-HANDLES-------------
-    private ServerSocket server;                                             // for starting service
-    private final ArrayList<Client> clients = new ArrayList<>() {{
-        for (int i = 0; i < maxNoClients; ++i) {
-            add(null);
-        }
-    }}; // for echoing messages
+    private ServerSocket server;
+    private final ArrayList<Client> clients = new ArrayList<>();
     // ------------------------------------------
-
 
     public static void main(String args[]) {
         // ---------SERVER-STARTING-POINT--------
@@ -32,59 +25,36 @@ public class Server {
     }
 
     private Server(int port) {
-        this.port = port;
-
-        this.openPort();
+        // ----------SERVER-STARTING-POINT----------
+        this.openPort(port);
         this.start();
-    }
-
-    private void openPort() {
-        try {
-            server = new ServerSocket(port);
-        } catch (IOException e) {
-            System.err.println("SERVER: Couldn't open port " + port);
-        }
+        // ------------------------------------------
     }
 
     private void start() {
-        // DIRTY WHILE
         while (true) {
             try {
-                Socket client = server.accept();
-
-                int idx = clients.indexOf(null);
-                if (idx != -1) {
-                    clients.set(idx, new Client(client));
-                    clients.get(idx).start();
-                } else {
-                    /*this.sendMessage(new PrintStream(client.getOutputStream()),
-                            "SERVER", "", "Server is too busy, try later.");*/
-                    this.sendMessage(new ObjectOutputStream(client.getOutputStream()),
-                            new MessageCard("SERVER", "", "Server is too busy, try later."));
-                }
+                this.addClient(server.accept());
             } catch (IOException e) {
-                System.err.println("SERVER: Couldn't established connection with client.");
-                System.err.println(e);
+                System.err.println("Server: Couldn't establish connection with client.");
+                System.err.println(e.getMessage());
             }
         }
     }
 
-    private boolean isFull() {
-        return noClients == maxNoClients;
+    private void openPort(int port) {
+        try {
+            server = new ServerSocket(port);
+        } catch (IOException e) {
+            System.err.println("Server: Couldn't open port " + port);
+        }
     }
 
-    /*private void sendMessage(PrintStream os, String author, String date, String message) {
-        os.println(author);
-        os.println(date);
-        os.println(message);
-    }*/
-
-    private void sendMessage(ObjectOutputStream os, MessageCard message) {
-        try {
-            os.writeObject(message);
-        } catch(Exception E) {
-
-        }
+    private void addClient(Socket client) {
+        Client clientWrapper = new Client(client);
+        clientWrapper.setDaemon(true);
+        clientWrapper.start();
+        clients.add(clientWrapper);
     }
 
     private class Client extends Thread {
@@ -94,20 +64,23 @@ public class Server {
         private ObjectOutputStream os;        // for sending messages to client
         // ------------------------------------------
 
-        String name;
+        private String name;
 
-        public Client(Socket socket) {
+        private Client(Socket socket) {
             this.socket = socket;
         }
 
         @Override
         public void run() {
             this.openStreams();
-            this.makeHandshake();
-            this.notifyOthers("User " + name + " entered the room!");
-            this.listenAndEcho();
-            this.notifyOthers("User " + name + " left the room!");
+            if (this.validate()) {
+                this.notifyMe("Hello " + name + "!");
+                this.notifyOthers("User " + name + " entered the room!");
+                this.listenAndEcho();
+                this.notifyOthers("User " + name + " left the room!");
+            }
             this.closeStreams();
+            this.removeFromTable();
         }
 
         private void openStreams() {
@@ -115,33 +88,39 @@ public class Server {
                 is = new ObjectInputStream(socket.getInputStream());
                 os = new ObjectOutputStream(socket.getOutputStream());
             } catch (IOException e) {
-                System.err.println("SERVER: Connection couldn't be established.");
-                System.err.println(e);
+                System.err.println("Server: Connection couldn't be established.");
+                System.err.println(e.getMessage());
             }
         }
 
-        private void makeHandshake() {
+        private boolean validate() {
+            boolean valid = false;
             try {
-                //HashMap<String, String> messageTable = readMessage();
-                //name = messageTable.get("author");
+                Object object = is.readObject();
 
-                MessageCard message = (MessageCard) is.readObject();
-                name = message.author;
-
-                /*sendMessage(os, "Server", "", "Hello "+name);*/
-                sendMessage(os, new MessageCard("SERVER", "", "Hello " + name));
-            } catch (Exception e) {
-                System.err.println("SERVER: Handshakes couldn't be made.");
-                System.err.println(e);
+                if (object instanceof Credentials) {
+                    Credentials credentials = (Credentials) object;
+                    valid = new LoginAuthorization().autorize(credentials.getUsername(), credentials.getPassword());
+                    if (valid) {
+                        this.name = credentials.getUsername();
+                    }
+                    os.writeObject(new Validation(valid));
+                }
+            } catch (Exception e){
+                System.err.println("Server: Couldn't validate the client.");
+                System.err.println(e.getMessage());
             }
+            return valid;
+        }
+
+        private void notifyMe(String message) {
+            send(os, new Consignment("Server", getCurrentDate(), message));
         }
 
         private void notifyOthers(String message) {
             for (Client client : clients) {
-                if (client != null && client != this) {
-                    /*sendMessage(client.os,
-                            "Server", "", message);*/
-                    sendMessage(client.os, new MessageCard("SERVER", "", message));
+                if (client != this) {
+                    send(client.os, new Consignment("Server", getCurrentDate(), message));
                 }
             }
         }
@@ -149,38 +128,19 @@ public class Server {
         private void listenAndEcho() {
             try {
                 while (true) {
-                    /*HashMap<String, String> messageTable = readMessage();*/
-
-                    MessageCard message = (MessageCard) is.readObject();
-
-                    /*if (messageTable.get("message").startsWith(":quit")) {
-                        break;
-                    }*/
-
+                    Consignment message = (Consignment) is.readObject();
                     for (Client client : clients) {
-                        if (client != null) {
-                            /*sendMessage(client.os,
-                                    messageTable.get("author"), messageTable.get("date"), messageTable.get("message"));*/
-                            sendMessage(client.os, message);
-                        }
+                        send(client.os, new Consignment(message.getAuthor(),message.getDate(),message.getMessage()));
                     }
                 }
             } catch (Exception e) {
-                System.err.println("SERVER: Something went wrong while listening one of the clients.");
-                System.err.println(e);
-            } finally {
-                this.removeFromTable();
-                this.notifyOthers("User " + name + " left the room!");
-                this.closeStreams();
+                System.err.println("Server: Something went wrong while listening one of the clients.");
+                System.err.println("Server: User " + name + " probably left the room.");
             }
         }
 
         private void removeFromTable() {
-            for (int idx = 0; idx < clients.size(); ++idx) {
-                if (clients.get(idx) == this) {
-                    clients.set(idx, null);
-                }
-            }
+            clients.remove(this);
         }
 
         private void closeStreams() {
@@ -189,17 +149,22 @@ public class Server {
                 os.close();
                 socket.close();
             } catch (IOException e) {
-                System.err.println("SERVER: Couldn't close streams.");
-                System.err.println(e);
+                System.err.println("Server: Couldn't close streams.");
+                System.err.println(e.getMessage());
             }
         }
 
-        /*private HashMap<String, String> readMessage() throws IOException {
-            return new HashMap<>() {{
-                put("author", is.readLine());
-                put("date", is.readLine());
-                put("message", is.readLine());
-            }};
-        }*/
+        private void send(ObjectOutputStream os, Consignment consignment) {
+            try {
+                os.writeObject(consignment);
+            } catch (IOException e) {
+                System.err.println("Server: Couldn't send a message.");
+                System.err.println(e.getMessage());
+            }
+        }
+
+        private String getCurrentDate() {
+            return new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
+        }
     }
 }
