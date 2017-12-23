@@ -3,7 +3,6 @@ package networking;
 import authorization.LoginAuthorization;
 import networking.messages.Credentials;
 import networking.messages.Consignment;
-import networking.messages.Validation;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -105,7 +104,6 @@ public class Server {
                     if (valid) {
                         this.name = credentials.getUsername();
                     }
-                    os.writeObject(new Validation(valid));
                 }
             } catch (Exception e){
                 System.err.println("Server: Couldn't validate the client.");

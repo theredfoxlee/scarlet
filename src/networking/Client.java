@@ -5,7 +5,6 @@ import java.net.Socket;
 
 import networking.messages.Consignment;
 import networking.messages.Message;
-import networking.messages.Validation;
 import ui.Scarlet;
 
 public class Client {
@@ -46,18 +45,13 @@ public class Client {
             try {
                 while (true) {
                     Message message = (Message) is.readObject();
-                    if (message instanceof Validation) {
-                        Validation validation = (Validation) message;
-                        if (!validation.isValid()) {
-                            break;
-                        }
-                    } else if (message instanceof  Consignment) {
+                    if (message instanceof  Consignment) {
                         this.addMessage((Consignment) message);
                     }
                 }
             } catch (Exception e) {
                 System.err.println("Client: Input stream has been broken.");
-                System.err.println(e.getMessage());
+                System.err.println("Client: It's likely you didn't pass validation.");
             } finally {
                 this.disconnect();
                 closed = true;
