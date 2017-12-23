@@ -1,4 +1,4 @@
-package networking;
+package authorization;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -11,7 +11,7 @@ public class LoginAuthorization {
 //    private String password;
     private HashMap<String,String> users= new HashMap<>();
 
-    LoginAuthorization(){
+    public LoginAuthorization(){
         getUsername();
     }
 

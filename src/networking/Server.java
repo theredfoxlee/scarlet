@@ -1,5 +1,6 @@
 package networking;
 
+import authorization.LoginAuthorization;
 import networking.messages.Credentials;
 import networking.messages.Consignment;
 import networking.messages.Validation;
