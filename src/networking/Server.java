@@ -1,5 +1,7 @@
 package networking;
 
+import ui.Message;
+
 import javax.xml.crypto.Data;
 import java.io.*;
 import java.lang.management.LockInfo;
@@ -28,8 +30,8 @@ public class Server {
     // ------------------------------------------
 
     //variables used in client validation
-    private DataInputStream is;
-    private PrintStream os;
+    private ObjectInputStream is;
+    private ObjectOutputStream os;
     private boolean is_valid;
 
     public static void main(String args[]) {
@@ -56,8 +58,9 @@ public class Server {
 
     private void initialize_streams(Socket client) {
         try {
-            is = new DataInputStream(client.getInputStream());
-            os = new PrintStream(client.getOutputStream());
+            is = new ObjectInputStream(client.getInputStream());
+            os = new ObjectOutputStream(client.getOutputStream());
+            os.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -69,22 +72,21 @@ public class Server {
             try {
                 Socket client = server.accept();
 
-                //validateClient(client)
-                if(validateClient(client)) {
+//                if(validateClient(client)) {
 
                     int idx = clients.indexOf(null);
                     if (idx != -1) {
                         clients.set(idx, new Client(client));
                         clients.get(idx).start();
                     } else {
-                        this.sendMessage(new PrintStream(client.getOutputStream()),
-                                "SERVER", "", "Server is too busy, try later.");
+                        this.sendMessage(new ObjectOutputStream(client.getOutputStream()),
+                                new MessageCard("SERVER","","Server is too busy, try later."));
                     }
-                }
-                else{
-                    client.close();
-                    System.err.println("Client's socket closed");
-                }
+//                }
+//                else{
+//                    client.close();
+//                    System.err.println("Client's socket closed");
+//                }
             } catch (IOException e) {
                 System.err.println("SERVER: Couldn't established connection with client.");
                 System.err.println(e);
@@ -92,50 +94,52 @@ public class Server {
         }
     }
 
-    private boolean validateClient(Socket client) {
-        this.initialize_streams(client);
-        HashMap<String, String> messages = new HashMap<>();
-        try {
-            messages.put("author", is.readLine());
-            messages.put("date", is.readLine());
-            messages.put("message", is.readLine());
-        } catch (IOException e) {
-            System.err.println("Couldnt read first input stream (login and password)");
-        }
-
-        String login = messages.get("author");
-        String password = messages.get("message");
-
-        System.out.println(login);
-        System.out.println(password);
-        LoginAuthorization authorization = new LoginAuthorization();
-        if (authorization.autorize(login, password)) {
-            is_valid = true;
-        } else {
-            is_valid = false;
-        }
-        System.out.println(is_valid);
-        return is_valid;
-    }
+//    private boolean validateClient(Socket client) {
+//        this.initialize_streams(client);
+//
+//        try {
+//            MessageCard message = (MessageCard) is.readObject();
+//            String login=message.author;
+//            String date=message.date;
+//            String password=message.message;
+//
+//            System.out.println(login);
+//            System.out.println(password);
+//            LoginAuthorization authorization = new LoginAuthorization();
+//            if (authorization.autorize(login, password)) {
+//                is_valid = true;
+//            } else {
+//                is_valid = false;
+//            }
+//
+//
+//        } catch (Exception e) {
+//            System.err.println("Couldnt read first input stream (login and password)");
+//        }
+//
+//        System.out.println(is_valid);
+//        return is_valid;
+//    }
 
     private boolean isFull() {
         return noClients == maxNoClients;
     }
 
-    private void sendMessage(PrintStream os, String author, String date, String message) {
-        os.println(author);
-        os.println(date);
-        os.println(message);
-    }
+    private void sendMessage(ObjectOutputStream os, MessageCard message) {
+        try {
+            os.writeObject(message);
+        } catch(Exception E) {
 
+        }
+    }
     //---------------------------------------------///
 
 
     private class Client extends Thread {
         // ------------NECESSARY-HANDLES-------------
         private Socket socket;         // for establishing I/O streams with client
-        private DataInputStream is;  // for retrieving messages from client
-        private PrintStream os;        // for sending messages to client
+        private ObjectInputStream is;  // for retrieving messages from client
+        private ObjectOutputStream os;        // for sending messages to client
         // ------------------------------------------
 
         String name;
@@ -150,60 +154,63 @@ public class Server {
         @Override
         public void run() {
             this.openStreams();
+            if(this.validateClient()) {
+                this.makeHandshake();
+                this.notifyOthers("User " + name + " entered the room!");
+                this.listenAndEcho();
+                //if user left while loop breaks and:
+                this.notifyOthers("User " + name + " left the room!");
 
-            this.makeHandshake();
-            this.notifyOthers("User " + name + " entered the room!");
-            this.listenAndEcho();
-            //if user left while loop breaks and:
-            this.notifyOthers("User " + name + " left the room!");
 
-            this.closeStreams();
+                this.closeStreams();
+            }
+            else {
+                this.closeStreams();
+            }
         }
 
         private void openStreams() {
             try {
-                is = new DataInputStream(socket.getInputStream());
-                os = new PrintStream(socket.getOutputStream());
+                is = new ObjectInputStream(socket.getInputStream());
+                os = new ObjectOutputStream(socket.getOutputStream());
             } catch (IOException e) {
                 System.err.println("SERVER: Connection couldn't be established.");
                 System.err.println(e);
             }
         }
+        private boolean validateClient() {
 
-//        private boolean validateClient() {
-//            try {
-//
-//                HashMap<String, String> messageMap = readMessage();
-//                LoginAuthorization authorization = new LoginAuthorization();
-//
-//                login = messageMap.get("author"); //here it's login -> author field contains login
-//                password = messageMap.get("message"); //here it's password
-//                //System.out.println(login);
-//                //System.out.println(password);
-//
-//                if (authorization.autorize(login, password)) {
-//                    is_valid = true;
-//
-//                } else {
-//                    is_valid = false;
-//                }
-//
-//
-//            } catch (IOException e) {
-//                System.err.println("Can't read message from one of the clients");
-//                System.err.println(e);
-//            }
-//
-//            return is_valid;
-//        }
+            try {
+                MessageCard message = (MessageCard) is.readObject();
+                String login=message.author;
+                String date=message.date;
+                String password=message.message;
+
+                System.out.println(login);
+                System.out.println(password);
+                LoginAuthorization authorization = new LoginAuthorization();
+                if (authorization.autorize(login, password)) {
+                    is_valid = true;
+                } else {
+                    is_valid = false;
+                }
+
+
+            } catch (Exception e) {
+                System.err.println("Couldnt read first input stream (login and password)");
+            }
+
+            System.out.println(is_valid);
+            return is_valid;
+        }
+
+
 
         private void makeHandshake() {
             try {
-                HashMap<String, String> messageTable = readMessage();
-                name = messageTable.get("author");
-
-                sendMessage(os, "Server", "", "Hello " + name);
-            } catch (IOException e) {
+                MessageCard message = (MessageCard) is.readObject();
+                sendMessage(os, new MessageCard("Server","","Hello"+message.author));
+            } catch (Exception e) {
                 System.err.println("SERVER: Handshakes couldn't be made.");
                 System.err.println(e);
             }
@@ -212,8 +219,7 @@ public class Server {
         private void notifyOthers(String message) {
             for (Client client : clients) {
                 if (client != null && client != this) {
-                    sendMessage(client.os,
-                            "Server", "", message);
+                    sendMessage(client.os, new MessageCard("SERVER", "", message));
                 }
             }
         }
@@ -221,20 +227,23 @@ public class Server {
         private void listenAndEcho() {
             try {
                 while (true) {
-                    HashMap<String, String> messageTable = readMessage();
+                    /*HashMap<String, String> messageTable = readMessage();*/
 
-                    if (messageTable.get("message").startsWith(":quit")) {
+                    MessageCard message = (MessageCard) is.readObject();
+
+                    /*if (messageTable.get("message").startsWith(":quit")) {
                         break;
-                    }
+                    }*/
 
                     for (Client client : clients) {
                         if (client != null) {
-                            sendMessage(client.os,
-                                    messageTable.get("author"), messageTable.get("date"), messageTable.get("message"));
+                            /*sendMessage(client.os,
+                                    messageTable.get("author"), messageTable.get("date"), messageTable.get("message"));*/
+                            sendMessage(client.os, new MessageCard(message.author,message.date,message.message));
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 System.err.println("SERVER: Something went wrong while listening one of the clients.");
                 System.err.println(e);
             } finally {
@@ -263,12 +272,5 @@ public class Server {
             }
         }
 
-        private HashMap<String, String> readMessage() throws IOException {
-            return new HashMap<>() {{
-                put("author", is.readLine());
-                put("date", is.readLine());
-                put("message", is.readLine());
-            }};
-        }
     }
 }
