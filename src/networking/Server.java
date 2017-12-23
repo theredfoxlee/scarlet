@@ -34,7 +34,6 @@ public class Server {
         while (true) {
             try {
                 this.addClient(server.accept());
-                System.out.println(clients.size());
             } catch (IOException e) {
                 System.err.println("Server: Couldn't establish connection with client.");
                 System.err.println(e.getMessage());
