@@ -1,5 +1,5 @@
 # scarlet
-Scarlet is an instant messenger. It's one of our task from programming classes. 
+Scarlet is an instant messenger. It's one of our tasks from programming classes. 
 
 ### contributors
 - theredfoxlee
