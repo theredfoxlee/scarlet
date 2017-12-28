@@ -31,6 +31,7 @@ public class Message extends VBox {
         Label messageLabel = new Label(message);
         messageLabel.getStyleClass().add("message-message");
 
+
         getChildren().addAll(topBar, messageLabel);
         getStyleClass().add("message");
     }

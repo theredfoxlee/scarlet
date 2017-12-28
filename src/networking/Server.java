@@ -16,6 +16,7 @@ public class Server {
     // ------------NECESSARY-HANDLES-------------
     private ServerSocket server;
     private final ArrayList<Client> clients = new ArrayList<>();
+    private ArrayList<String> online_users= new ArrayList<>();
     // ------------------------------------------
 
     public static void main(String args[]) {
@@ -77,6 +78,7 @@ public class Server {
                 this.notifyMe("Hello " + name + "!");
                 this.notifyOthers("User " + name + " entered the room!");
                 this.listenAndEcho();
+                online_users.remove(name);
                 this.notifyOthers("User " + name + " left the room!");
             }
             this.closeStreams();
@@ -95,14 +97,19 @@ public class Server {
 
         private boolean validate() {
             boolean valid = false;
+            boolean online_check;
+            boolean valid_user;
             try {
                 Object object = is.readObject();
 
                 if (object instanceof Credentials) {
                     Credentials credentials = (Credentials) object;
-                    valid = new LoginAuthorization().autorize(credentials.getUsername(), credentials.getPassword());
-                    if (valid) {
+                    valid_user = new LoginAuthorization().autorize(credentials.getUsername(), credentials.getPassword());
+                    online_check = online_users.contains(credentials.getUsername());
+                    if (valid_user &&!online_check) {
                         this.name = credentials.getUsername();
+                        online_users.add(credentials.getUsername());
+                        valid = true;
                     }
                 }
             } catch (Exception e){
