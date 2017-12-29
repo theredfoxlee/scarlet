@@ -17,7 +17,7 @@ public class Client {
     // ------------------------------------------
 
     // ------------------FLAGS-------------------
-    private boolean closed;
+    private boolean isClosed = false;
     // ------------------------------------------
 
     public Client(String host, Integer port, Scarlet ui) {
@@ -43,18 +43,31 @@ public class Client {
     private void runListener() {
         Thread thread = new Thread(() -> {
             try {
+                // Wait on first message.
+                // If it will come, it means that user passed validation.
+                // It it won't come, NullPointerException will be thrown.
+                Message message = (Message) is.readObject();
+                this.notifyMainThread();
+                // If it passed, user is valid and can start listing for
+                // further messages. If not, finally block will close
+                // all opened streams and socket connection.
                 while (true) {
-                    Message message = (Message) is.readObject();
                     if (message instanceof  Consignment) {
                         this.addMessage((Consignment) message);
                     }
+                    message = (Message) is.readObject();
                 }
             } catch (Exception e) {
                 System.err.println("Client: Input stream has been broken.");
                 System.err.println("Client: It's likely you didn't pass validation.");
             } finally {
+                isClosed = true;
                 this.disconnect();
-                closed = true;
+                // Though it's redundant, it's required
+                // in case first message was null
+                // because of closed connection by a server.
+                // It's done when user didn't pass a validation.
+                this.notifyMainThread();
             }
         });
         thread.setDaemon(true);
@@ -72,8 +85,14 @@ public class Client {
         }
     }
 
+    private void notifyMainThread() {
+        synchronized (ui.getMainThread()) {
+            ui.getMainThread().notify();
+        }
+    }
+
     public boolean isClosed() {
-        return closed;
+        return isClosed;
     }
 
     public void send(networking.messages.Message message) {

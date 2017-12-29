@@ -16,7 +16,7 @@ public class Server {
     // ------------NECESSARY-HANDLES-------------
     private ServerSocket server;
     private final ArrayList<Client> clients = new ArrayList<>();
-    private ArrayList<String> online_users= new ArrayList<>();
+    private ArrayList<String> activeUsers = new ArrayList<>();
     // ------------------------------------------
 
     public static void main(String args[]) {
@@ -52,23 +52,27 @@ public class Server {
     }
 
     private void addClient(Socket client) {
-        Client clientWrapper = new Client(client);
-        clientWrapper.setDaemon(true);
-        clientWrapper.start();
+        Client clientWrapper = new Client(client, clients);
+        Thread thread = new Thread(clientWrapper);
+        thread.setDaemon(true);
+        thread.start();
         clients.add(clientWrapper);
     }
 
-    private class Client extends Thread {
+    private class Client implements Runnable {
         // ------------NECESSARY-HANDLES-------------
         private Socket socket;         // for establishing I/O streams with client
         private ObjectInputStream is;  // for retrieving messages from client
         private ObjectOutputStream os;        // for sending messages to client
+
+        private ArrayList<Client> clients;
         // ------------------------------------------
 
         private String name;
 
-        private Client(Socket socket) {
+        private Client(Socket socket, ArrayList<Client> clients) {
             this.socket = socket;
+            this.clients = clients;
         }
 
         @Override
@@ -78,11 +82,10 @@ public class Server {
                 this.notifyMe("Hello " + name + "!");
                 this.notifyOthers("User " + name + " entered the room!");
                 this.listenAndEcho();
-                online_users.remove(name);
                 this.notifyOthers("User " + name + " left the room!");
             }
             this.closeStreams();
-            this.removeFromTable();
+            this.removeFromTables();
         }
 
         private void openStreams() {
@@ -97,18 +100,13 @@ public class Server {
 
         private boolean validate() {
             boolean valid = false;
-            boolean online_check;
-            boolean valid_user;
             try {
                 Object object = is.readObject();
-
                 if (object instanceof Credentials) {
                     Credentials credentials = (Credentials) object;
-                    valid_user = new LoginAuthorization().autorize(credentials.getUsername(), credentials.getPassword());
-                    online_check = online_users.contains(credentials.getUsername());
-                    if (valid_user &&!online_check) {
+                    if (validate(credentials)) {
                         this.name = credentials.getUsername();
-                        online_users.add(credentials.getUsername());
+                        activeUsers.add(credentials.getUsername());
                         valid = true;
                     }
                 }
@@ -117,6 +115,12 @@ public class Server {
                 System.err.println(e.getMessage());
             }
             return valid;
+        }
+
+        private boolean validate(Credentials credentials) {
+            boolean areCredentialsValid = new LoginAuthorization().autorize(credentials.getUsername(), credentials.getPassword());
+            boolean isNotLoggedIn = !activeUsers.contains(credentials.getUsername());
+            return areCredentialsValid && isNotLoggedIn;
         }
 
         private void notifyMe(String message) {
@@ -145,7 +149,8 @@ public class Server {
             }
         }
 
-        private void removeFromTable() {
+        private void removeFromTables() {
+            activeUsers.remove(name);
             clients.remove(this);
         }
 

@@ -34,6 +34,8 @@ public class Scarlet extends Application {
     private VBox messagesPane;        // for adding messages
     private TextField loginTextField; // for reading login name
     private Client client;            // for performing I/O operations with server
+
+    private final Thread mainThread = Thread.currentThread();
     // ------------------------------------------
 
     // --------------ABOUT-SERVER----------------
@@ -49,7 +51,7 @@ public class Scarlet extends Application {
     public void start(Stage primaryStage) {
         // --------APPLICATION-STARTING-POINT--------
         Scene mainScene = buildMainScene();
-        Scene loginScene = setLoginScene(primaryStage, mainScene);
+        Scene loginScene = buildLoginScene(primaryStage, mainScene);
 
         primaryStage.setMinWidth(minWidth);
         primaryStage.setMinHeight(minHeight);
@@ -63,11 +65,9 @@ public class Scarlet extends Application {
         BorderPane borderPane = new BorderPane();
         borderPane.setPrefWidth(prefWidth);
         borderPane.setPrefHeight(prefHeight);
-        borderPane.getStyleClass().add("main-scene");
 
         messagesPane = new VBox();
         messagesPane.setSpacing(10);
-        messagesPane.getStyleClass().add("message-pane");
 
         ScrollPane scrollableMessagePane = new ScrollPane();
         scrollableMessagePane.setContent(messagesPane);
@@ -100,7 +100,7 @@ public class Scarlet extends Application {
         return mainScene;
     }
 
-    private Scene setLoginScene(Stage stage,Scene mainScene){
+    private Scene buildLoginScene(Stage stage,Scene mainScene){
         GridPane gridPane = new GridPane();
         gridPane.setMinSize(minWidth,minHeight);
         gridPane.setAlignment(Pos.CENTER);
@@ -112,34 +112,53 @@ public class Scarlet extends Application {
 
         gridPane.getStylesheets().add(getClass().getResource("/css/login.css").toExternalForm());
 
-        loginTextField = new TextField("Set your Login");
+        loginTextField = new TextField("username");
         GridPane.setConstraints(loginTextField,1,0);
 
         Label loginLabel = new Label("Login:");
+        loginLabel.getStyleClass().add("login-label");
         GridPane.setConstraints(loginLabel,0,0);
 
         PasswordField passwordTextField = new PasswordField();
+        passwordTextField.setText("password");
         GridPane.setConstraints(passwordTextField,1,1);
 
+        loginTextField.focusedProperty().addListener(((observable, oldValue, newValue) -> {
+            loginTextField.selectAll();
+            loginTextField.setStyle("-fx-text-fill: #000000");
+            passwordTextField.setStyle("-fx-text-fill: #000000");
+        }));
+
+        passwordTextField.focusedProperty().addListener(((observable, oldValue, newValue) -> {
+            passwordTextField.selectAll();
+            loginTextField.setStyle("-fx-text-fill: #000000");
+            passwordTextField.setStyle("-fx-text-fill: #000000");
+        }));
+
         Label passwordLabel = new Label("Password:");
+        passwordLabel.getStyleClass().add("login-label");
         GridPane.setConstraints(passwordLabel,0,1);
 
         Button loginButton = new Button("Login");
         loginButton.getStyleClass().add("login-button");
         GridPane.setConstraints(loginButton,0,3);
 
-        Button addButton = new Button("Add");
+        /*Button addButton = new Button("Add");
         addButton.getStyleClass().add("login-button");
-        GridPane.setConstraints(addButton,1,3);
+        GridPane.setConstraints(addButton,1,3);*/
 
         loginButton.setOnAction(e -> {
             establishConnection();
             if (validateUser(loginTextField.getText(), passwordTextField.getText())) {
                 stage.setScene(mainScene);
+            } else {
+                loginTextField.setStyle("-fx-text-fill: #ff0000");
+                passwordTextField.setStyle("-fx-text-fill: #ff0000");
             }
         });
 
-        gridPane.getChildren().addAll(loginTextField, loginLabel, passwordTextField, passwordLabel, loginButton, addButton);
+        //gridPane.getChildren().addAll(loginTextField, loginLabel, passwordTextField, passwordLabel, loginButton, addButton);
+        gridPane.getChildren().addAll(loginTextField, loginLabel, passwordTextField, passwordLabel, loginButton);
 
         Scene loginScene = new Scene(gridPane);
         return loginScene;
@@ -160,15 +179,18 @@ public class Scarlet extends Application {
     private boolean validateUser(String username, String password) {
         client.send(new Credentials(username, password));
 
-        // it's important to wait till client receives Validation message
-        // it's temporary; it should be changed to wait & notify somehow
-        try {
-            Thread.sleep(1000);
-        } catch(InterruptedException e) {
-            // do nothing
+        synchronized (mainThread) {
+            try {
+                mainThread.wait();
+            } catch (InterruptedException e) {
+                // pass
+            }
         }
-
         return !client.isClosed();
+    }
+
+    public Thread getMainThread() {
+        return mainThread;
     }
 }
 
