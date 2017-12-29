@@ -52,7 +52,7 @@ public class Server {
     }
 
     private void addClient(Socket client) {
-        Client clientWrapper = new Client(client, clients);
+        Client clientWrapper = new Client(client);
         Thread thread = new Thread(clientWrapper);
         thread.setDaemon(true);
         thread.start();
@@ -64,15 +64,12 @@ public class Server {
         private Socket socket;         // for establishing I/O streams with client
         private ObjectInputStream is;  // for retrieving messages from client
         private ObjectOutputStream os;        // for sending messages to client
-
-        private ArrayList<Client> clients;
         // ------------------------------------------
 
         private String name;
 
-        private Client(Socket socket, ArrayList<Client> clients) {
+        private Client(Socket socket) {
             this.socket = socket;
-            this.clients = clients;
         }
 
         @Override
